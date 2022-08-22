@@ -1,0 +1,8 @@
+---
+DATABASE:
+  HOST: insert_host_name
+  DBNAME: insert_database_name
+  USER: insert_user_name
+
+GOOGLE_DRIVE:
+  CREDENTIALS_FILE_PATH: insert_file_path_to_google_drive_service_account_key_credentials_json_file

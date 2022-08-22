@@ -1,5 +1,7 @@
 """One-to-one mapping between each spot's alphanumeric ID and common name.
 
+"SPOTS" variable string provided by 
+https://github.com/swrobel/meta-surf-forecast/blob/main/db/seeds.rb
 Additional location metadata (subregion and region) is fetched for each spot.
 """
 
@@ -1124,9 +1126,6 @@ SPOTS_LIST = SPOTS.split("{")
 
 def get_spot_mapping_list():
     """Fetches one-to-one mapping between spot_id and spot_name by parsing "SPOTS".
-
-    The "SPOTS" global variable that is parsed is provided by
-    https://github.com/swrobel/meta-surf-forecast/blob/main/db/seeds.rb
 
     Returns:
         List: Each element is a dictionary with the two keys "spot_id" and "spot_name".

@@ -1,4 +1,4 @@
-"""One-to-one mapping between each spot's alphanumeric ID and common name.
+"""One-to-one mapping between each location's alphanumeric ID and common name.
 
 "SPOTS" variable string provided by 
 https://github.com/swrobel/meta-surf-forecast/blob/main/db/seeds.rb
@@ -1158,10 +1158,10 @@ def get_spot_mapping_list():
     return mapping_list
 
 def get_spot_mapping_df():
-    """Fetches subregion and region of each surf break spot.
+    """Fetches subregion and region of each surf break location.
 
     Returns:
-        DataFrame: Each row is a spot with its spot_id, spot_name, subregion, and region
+        DataFrame: Each row is a location with its spot_id, spot_name, subregion, and region.
     """
     mp_list = get_spot_mapping_list()
     for mp in mp_list:

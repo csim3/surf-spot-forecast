@@ -19,78 +19,66 @@ import yaml
 
 from spot_mapping import get_spot_mapping_list, get_spot_mapping_df
 
-class Location():
-    """Surf break spot that has 17-day forecasts provided by Surfline.
-
-    Forecast type (waves, weather, wind, tides) of the specific spot is not 
-    specified in the Location class but is instead specified in the below 
-    classes that extend the Location class.
+class LocationOutlook():
+    """Surf break location with 17-day forecast of waves, weather, wind, or tides.
     
     Attributes:
         spot_id (string): Surfline's alphanumeric ID of a surf break location.
         spot_name (string): Common name of a surf break location. 
             One-to-one mapping between spot_id and spot_name provided by 
             https://github.com/swrobel/meta-surf-forecast/blob/main/db/seeds.rb
+        forecast_type (string): Forecast type of the API request.
+                Possible values are "wave", "weather", "wind", or "tides".
+        interval_hours (int): Number of hours between each forecast.
     """
 
-    def __init__(self, s_id, s_name):
-        """Inits Location with spot_id and spot_name."""
-        self.spot_id = s_id
-        self.spot_name = s_name
+    def __init__(self, spot_id, spot_name, forecast_type, interval_hours):
+        self.spot_id = spot_id
+        self.spot_name = spot_name
+        self.forecast_type = forecast_type
+        self.interval_hours = interval_hours
     
-    def get_forecast_json(self, f_type):
+    def get_forecast_json(self, forecast_type, interval_hours):
         """Fetches JSON object of the request result from Surfline's API.
 
-        JSON object is a spot's forecast data of a specific forecast type 
-        (wave, weather, wind, or tides). Time period is 17 days and three hour 
-        intervals.
+        JSON object is a location's forecast data of a specific forecast type 
+        (wave, weather, wind, or tides). Time period is 17 days and specified 
+        number of hours for each forecast interval.
 
         Args:
-            f_type (string): Forecast type of the API request.
+            forecast_type (string): Forecast type of the API request.
                 Possible values are "wave", "weather", "wind", or "tides".
+            interval_hours (int): Number of hours between each forecast.
 
         Returns:
             JSON: Request result from Surfline's API.
         """
         base_url = "https://services.surfline.com/kbyg/spots/forecasts/{t}".format(
-            t = f_type)
+            t = forecast_type)
         p = {}
         p['spotId'] = self.spot_id
         p['days'] = 17
-        p['intervalHours'] = 3
+        p['intervalHours'] = interval_hours
         p['sds'] = True
         r = requests.get(base_url, params = p)
         return r.json()
 
-class WaveOutlook(Location):
-    """Surf break spot's wave forecast.
-
-    Attributes
-        forecast_type (string): Set to "wave" to indicate wave forecast.
-    """
-
-    forecast_type = "wave"
-    
-    def get_forecast_json(self):
-        """See base class."""
-        return Location.get_forecast_json(self, self.forecast_type)
-    
-    def get_wave_dataframe(self, json_data):
-        """Fetches DataFrame object of the spot's wave forecast.
+    def get_wave_dataframe(self, wave_json):
+        """Fetches DataFrame object of the location's wave forecast.
 
         Args:
-            json_data (JSON): Request result from Surfline's API for wave forecast.
+            wave_json (JSON): Request result from Surfline's API for wave forecast.
 
         Returns:
-            DataFrame: 17-day wave forecast for every third hour of a specific spot.
+            DataFrame: 17-day wave forecast of a specific location.
         """
         #static location-specific data
-        latitude = json_data['associated']['location']['lat']
-        longitude = json_data['associated']['location']['lon']
+        latitude = wave_json['associated']['location']['lat']
+        longitude = wave_json['associated']['location']['lon']
         time_zone = timezonefinder.TimezoneFinder().timezone_at(
             lng=longitude, lat=latitude)
         
-        #initialize lists for forecasts from each third hour
+        #initialize lists for forecasts from each specified hour
         timestamps = []
         local_times = []
         max_heights = []
@@ -99,7 +87,7 @@ class WaveOutlook(Location):
         swells = []
         
         #forecast data of specified hour
-        for hourly_wave in json_data['data']['wave']:
+        for hourly_wave in wave_json['data']['wave']:
             timestamps.append(int(hourly_wave['timestamp']))
             max_heights.append(hourly_wave['surf']['raw']['max'])
             min_heights.append(hourly_wave['surf']['raw']['min'])
@@ -137,35 +125,22 @@ class WaveOutlook(Location):
         }
         return pd.DataFrame(data=wave_dict)
     
-class WindOutlook(Location):
-    """Surf break spot's wind forecast.
-
-    Attributes
-        forecast_type (string): Set to "wind" to indicate wind forecast.
-    """
-
-    forecast_type = "wind"
-    
-    def get_forecast_json(self):
-        """See base class."""
-        return Location.get_forecast_json(self, self.forecast_type)
-    
-    def get_wind_dataframe(self, json_data):
-        """Fetches DataFrame object of the spot's wind forecast.
+    def get_wind_dataframe(self, wind_json):
+        """Fetches DataFrame object of the location's wind forecast.
 
         Args:
-            json_data (JSON): Request result from Surfline's API for wind forecast.
+            wind_json (JSON): Request result from Surfline's API for wind forecast.
 
         Returns:
-            DataFrame: 17-day wind forecast for every third hour of a specific spot.
+            DataFrame: 17-day wind forecast of a specific location.
         """
-        #initialize lists for forecasts from each third hour
+        #initialize lists for forecasts from each specified hour
         timestamps = []
         speeds = []
         direction_types = []
         
         #forecast data of specified hour
-        for hourly_wind in json_data['data'][self.forecast_type]:
+        for hourly_wind in wind_json['data'][self.forecast_type]:
             timestamps.append(int(hourly_wind['timestamp']))
             speeds.append(hourly_wind['speed'])
             direction_types.append(hourly_wind['directionType'])
@@ -176,57 +151,32 @@ class WindOutlook(Location):
             "wind_direction_type": direction_types,
         }
         return pd.DataFrame(data=wind_dict)
-
-class TidesOutlook(Location):
-    """Surf break spot's tides forecast.
-
-    Attributes
-        forecast_type (string): Set to "tides" to indicate tides forecast.
-    """
-
-    forecast_type = "tides"
-    
-    def get_forecast_json(self):
-        """See base class.
-
-        Note:
-            Tides forecast is hourly along with timestamps of high and low tides.
-        """
-        base_url = "https://services.surfline.com/kbyg/spots/forecasts/{t}".format(
-            t = self.forecast_type)
-        p = {}
-        p['spotId'] = self.spot_id
-        p['days'] = 17
-        p['intervalHours'] = 1
-        p['sds'] = True
-        r = requests.get(base_url, params = p)
-        return r.json()
-    
-    def get_tides_dataframe(self, json_data):
-        """Fetches DataFrame object of the spot's tides forecast.
+   
+    def get_tides_dataframe(self, tides_json):
+        """Fetches DataFrame object of the location's tides forecast.
 
         Args:
-            json_data (JSON): Request result from Surfline's API for tides forecast.
+            tides_json (JSON): Request result from Surfline's API for tides forecast.
 
         Returns:
-            DataFrame: Hourly tides forecast, along with timestamps of high and low tides.
+            DataFrame: 17-day tides forecast, along with timestamps of high and low tides.
         """
         #static location-specific data
-        latitude = json_data['associated']['tideLocation']['lat']
-        longitude = json_data['associated']['tideLocation']['lon']
-        location = json_data['associated']['tideLocation']['name']
+        latitude = tides_json['associated']['tideLocation']['lat']
+        longitude = tides_json['associated']['tideLocation']['lon']
+        location = tides_json['associated']['tideLocation']['name']
         time_zone = timezonefinder.TimezoneFinder().timezone_at(
             lng=longitude, lat=latitude)
         
-        #initialize lists for hourly forecasts
+        #initialize lists for forecasts from each specified hour
         timestamps = []
         local_times = []
         local_hours = []
         heights = []
         types = []
         
-        #hourly forecast data
-        for hourly_tide in json_data['data']['tides']:
+        #forecast data of specified hour
+        for hourly_tide in tides_json['data']['tides']:
             timestamps.append(int(hourly_tide['timestamp']))
             heights.append(hourly_tide['height'])
             types.append(hourly_tide['type'])
@@ -249,27 +199,14 @@ class TidesOutlook(Location):
         }
         return pd.DataFrame(data=tides_dict)
     
-class WeatherOutlook(Location):
-    """Surf break spot's weather forecast.
-
-    Attributes
-        forecast_type (string): Set to "weather" to indicate weather forecast.
-    """
-    
-    forecast_type = "weather"
-    
-    def get_forecast_json(self):
-        """See base class."""
-        return Location.get_forecast_json(self, self.forecast_type)
-    
-    def get_weather_dataframe(self, json_data):
-        """Fetches DataFrame object of the spot's weather forecast.
+    def get_weather_dataframe(self, weather_json):
+        """Fetches DataFrame object of the location's weather forecast.
 
         Args:
             json_data (JSON): Request result from Surfline's API for weather forecast.
 
         Returns:
-            DataFrame: 17-day weather forecast for every third hour of a specific spot.
+            DataFrame: 17-day weather forecast of a specific location.
         """
         #dictionaries for each characterisitc of daily weather data
         dawns = {}
@@ -277,13 +214,13 @@ class WeatherOutlook(Location):
         sunsets = {}
         dusks = {}
         
-        for daily in json_data['data']['sunlightTimes']:
+        for daily in weather_json['data']['sunlightTimes']:
             dawns[str(daily['midnight'])] = daily['dawn']
             sunrises[str(daily['midnight'])] = daily['sunrise']
             sunsets[str(daily['midnight'])] = daily['sunset']
             dusks[str(daily['midnight'])] = daily['dusk']
         
-        #initialize lists for forecasts from each third hour
+        #initialize lists for forecasts from each specified hour
         timestamps = []
         temperatures = []
         dawns_list = []
@@ -292,7 +229,7 @@ class WeatherOutlook(Location):
         dusks_list = []
             
         #forecast data of specified hour
-        for hourly_weather in json_data['data'][self.forecast_type]:
+        for hourly_weather in weather_json['data'][self.forecast_type]:
             timestamps.append(int(hourly_weather['timestamp']))
             temperatures.append(hourly_weather['temperature'])
             
@@ -324,7 +261,7 @@ class WeatherOutlook(Location):
         return pd.DataFrame(data=weather_dict)
 
 def delete_rows(table_name, s_id):
-    """Delete forecast data from PostgreSQL database table for specific spot.
+    """Delete forecast data from PostgreSQL database table for specific location.
 
     Args:
         table_name (string): PostgreSQL database table name.
@@ -373,11 +310,11 @@ def truncate_table(table_name):
     conn.close()
     
 def insert_rows(table_name, df):
-    """Insert forecast DataFrame for specific spot into PostgreSQL database table.
+    """Insert forecast DataFrame for specific location into PostgreSQL database table.
 
     Args:
         table_name (string): PostgreSQL database table name.
-        df (DataFrame): 17-day forecast data of specific spot.
+        df (DataFrame): 17-day forecast data of specific location.
     """
     with open('config.yaml') as config_file:
         dict = yaml.safe_load(config_file)
@@ -400,10 +337,10 @@ def get_formatted_local_time(unix_timestamp, t_zone):
 
     Args:
         unix_timestamp (int): Unix timestamp
-        t_zone (tzinfo): Instance of a tzinfo subclass that specifies a spot's timezone
+        t_zone (tzinfo): Instance of a tzinfo subclass that specifies a location's timezone
 
     Returns:
-        string: Equivalent time in spot's timezone of the inputted Unix timestamp
+        string: Equivalent time in location's timezone of the inputted Unix timestamp
     """
     return datetime.datetime.fromtimestamp(
         unix_timestamp,tz=datetime.timezone.utc).astimezone(
@@ -466,7 +403,7 @@ def run_postgresql_etl():
     """Runs Surfline API -> PostgreSQL db table ETL process.
 
     ETL process for wave, weather, wind, and tides forecast is run for each 
-    surf break spot that has a mapped spot_id.
+    surf break location that has a mapped location.
     """
     #Change working dir to home dir to find config.yaml file in Airflow runs
     os.chdir(str(pathlib.Path.home())) 
@@ -474,21 +411,28 @@ def run_postgresql_etl():
     truncate_table("wave_weather_wind_tides")
     for spot in get_spot_mapping_list():
         #Create dataframes for each wave, weather, wind, and tides forecast
-        wave_spot = WaveOutlook(spot['spot_id'], spot['spot_name'])
-        wave_json = wave_spot.get_forecast_json()
-        wave_df = wave_spot.get_wave_dataframe(wave_json)
+        #Three hour intervals for wave, weather, and wind
+        #One hour intervals for tides to get exact times of high and low tides
+        wave_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wave', 3)
+        wave_json_data = wave_spot.get_forecast_json(
+            wave_spot.forecast_type, wave_spot.interval_hours)
+        wave_df = wave_spot.get_wave_dataframe(wave_json_data)
         
-        weather_spot = WeatherOutlook(spot['spot_id'], spot['spot_name'])
-        weather_json = weather_spot.get_forecast_json()
-        weather_df = weather_spot.get_weather_dataframe(weather_json)
+        weather_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'weather', 3)
+        weather_json_data = weather_spot.get_forecast_json(
+            weather_spot.forecast_type, weather_spot.interval_hours)
+        weather_df = weather_spot.get_weather_dataframe(weather_json_data)
         
-        wind_spot = WindOutlook(spot['spot_id'], spot['spot_name'])
-        wind_json = wind_spot.get_forecast_json()
-        wind_df = wind_spot.get_wind_dataframe(wind_json)
+        wind_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wind', 3)
+        wind_json_data = wind_spot.get_forecast_json(
+            wind_spot.forecast_type, wind_spot.interval_hours)
+        wind_df = wind_spot.get_wind_dataframe(wind_json_data)
         
-        tides_spot = TidesOutlook(spot['spot_id'], spot['spot_name'])
-        tides_json = tides_spot.get_forecast_json()
-        tides_df = tides_spot.get_tides_dataframe(tides_json)
+        tides_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'tides', 1)
+        tides_json_data = tides_spot.get_forecast_json(
+            tides_spot.forecast_type, tides_spot.interval_hours)
+        tides_df = tides_spot.get_tides_dataframe(tides_json_data)
+
         #filter tides df for records that are multiples of 3rd hour or high/low tides
         filtered_tides_df = tides_df[(tides_df['tide_local_hour'] % 3 == 0) | (
             tides_df['tide_type'] != 'NORMAL')]

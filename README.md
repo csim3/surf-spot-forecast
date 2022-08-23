@@ -12,7 +12,7 @@ I practiced building a data pipeline with [Surfline](https://www.surfline.com/) 
 3. Loaded data to a database in PostgreSQL. Though not necessary, this step was used to practice running PostgreSQL locally.
 4. Loaded data from PostgreSQL to Google Sheets. Google Sheets was specifically used since it is a free, web-based program whose data is automatically refreshed on a daily basis in Tableau Public dashboards.
 5. Configured the above four steps in an Airflow DAG that runs locally and refreshes data on a daily basis.
-6. Constructed a Tableau dashboard that is publicly viewable on [Tableau Public](https://public.tableau.com/views/Surfline_comSpotForecast/SpotForecast?:language=en-US&:display_count=n&:origin=viz_share_link) to visualize 17-day wave, weather, wind, and tides forecasts of specific surf spots.
+6. Constructed a Tableau dashboard that is publicly viewable on [Tableau Public](https://public.tableau.com/views/Surfline_comSpotForecast/SpotForecast?:language=en-US&:display_count=n&:origin=viz_share_link) to visualize 17-day wave, weather, wind, and tides forecasts of different surf spots.
 
 ## Tableau Dashboard Screenshot
 

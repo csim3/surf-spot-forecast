@@ -410,68 +410,72 @@ def run_postgresql_etl():
     #Update postgresql table for wave/weather/wind and tides
     truncate_table("wave_weather_wind_tides")
     for spot in get_spot_mapping_list():
-        #Create dataframes for each wave, weather, wind, and tides forecast
-        #Three hour intervals for wave, weather, and wind
-        #One hour intervals for tides to get exact times of high and low tides
-        wave_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wave', 3)
-        wave_json_data = wave_spot.get_forecast_json(
-            wave_spot.forecast_type, wave_spot.interval_hours)
-        wave_df = wave_spot.get_wave_dataframe(wave_json_data)
-        
-        weather_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'weather', 3)
-        weather_json_data = weather_spot.get_forecast_json(
-            weather_spot.forecast_type, weather_spot.interval_hours)
-        weather_df = weather_spot.get_weather_dataframe(weather_json_data)
-        
-        wind_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wind', 3)
-        wind_json_data = wind_spot.get_forecast_json(
-            wind_spot.forecast_type, wind_spot.interval_hours)
-        wind_df = wind_spot.get_wind_dataframe(wind_json_data)
-        
-        tides_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'tides', 1)
-        tides_json_data = tides_spot.get_forecast_json(
-            tides_spot.forecast_type, tides_spot.interval_hours)
-        tides_df = tides_spot.get_tides_dataframe(tides_json_data)
+        try:
+            #Create dataframes for each wave, weather, wind, and tides forecast
+            #Three hour intervals for wave, weather, and wind
+            #One hour intervals for tides to get exact times of high and low tides
+            wave_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wave', 3)
+            wave_json_data = wave_spot.get_forecast_json(
+                wave_spot.forecast_type, wave_spot.interval_hours)
+            wave_df = wave_spot.get_wave_dataframe(wave_json_data)
+            
+            weather_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'weather', 3)
+            weather_json_data = weather_spot.get_forecast_json(
+                weather_spot.forecast_type, weather_spot.interval_hours)
+            weather_df = weather_spot.get_weather_dataframe(weather_json_data)
+            
+            wind_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wind', 3)
+            wind_json_data = wind_spot.get_forecast_json(
+                wind_spot.forecast_type, wind_spot.interval_hours)
+            wind_df = wind_spot.get_wind_dataframe(wind_json_data)
+            
+            tides_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'tides', 1)
+            tides_json_data = tides_spot.get_forecast_json(
+                tides_spot.forecast_type, tides_spot.interval_hours)
+            tides_df = tides_spot.get_tides_dataframe(tides_json_data)
 
-        #filter tides df for records that are multiples of 3rd hour or high/low tides
-        filtered_tides_df = tides_df[(tides_df['tide_local_hour'] % 3 == 0) | (
-            tides_df['tide_type'] != 'NORMAL')]
-        
-        #Join dataframes to get singular dataframe for database input
-        www_df = wave_df.merge(weather_df, on='spot_with_timestamp', how='left').merge(
-            wind_df, on='spot_with_timestamp', how='left')
-        wwwt_df = pd.merge(filtered_tides_df, www_df, 
-            on=['spot_with_timestamp','spot_id','spot_name'], how='left')
-        wwwt_df_mapping = pd.merge(wwwt_df, get_spot_mapping_df(), 
-            on=['spot_id','spot_name'], how='left')
-        final_df = wwwt_df_mapping[[
-            'tide_local_time',
-            'tide_height',
-            'tide_type',
-            'spot_id',
-            'spot_name',
-            'spot_timezone',
-            'spot_local_time',
-            'wave_max_height',
-            'wave_min_height',
-            'human_relation',
-            'swell_height_1',
-            'swell_height_2',
-            'swell_height_3',
-            'swell_height_4',
-            'swell_height_5',
-            'swell_height_6',
-            'temperature',
-            'first_light',
-            'sunrise',
-            'sunset',
-            'last_light',
-            'wind_speed',
-            'wind_direction_type',
-            'subregion',
-            'region'
-        ]]
-        insert_rows("wave_weather_wind_tides", final_df)
+            #filter tides df for records that are multiples of 3rd hour or high/low tides
+            filtered_tides_df = tides_df[(tides_df['tide_local_hour'] % 3 == 0) | (
+                tides_df['tide_type'] != 'NORMAL')]
+            
+            #Join dataframes to get singular dataframe for database input
+            www_df = wave_df.merge(weather_df, on='spot_with_timestamp', how='left').merge(
+                wind_df, on='spot_with_timestamp', how='left')
+            wwwt_df = pd.merge(filtered_tides_df, www_df, 
+                on=['spot_with_timestamp','spot_id','spot_name'], how='left')
+            wwwt_df_mapping = pd.merge(wwwt_df, get_spot_mapping_df(), 
+                on=['spot_id','spot_name'], how='left')
+            final_df = wwwt_df_mapping[[
+                'tide_local_time',
+                'tide_height',
+                'tide_type',
+                'spot_id',
+                'spot_name',
+                'spot_timezone',
+                'spot_local_time',
+                'wave_max_height',
+                'wave_min_height',
+                'human_relation',
+                'swell_height_1',
+                'swell_height_2',
+                'swell_height_3',
+                'swell_height_4',
+                'swell_height_5',
+                'swell_height_6',
+                'temperature',
+                'first_light',
+                'sunrise',
+                'sunset',
+                'last_light',
+                'wind_speed',
+                'wind_direction_type',
+                'subregion',
+                'region'
+            ]]
+            print("Data extracted for {s}".format(s=spot['spot_name']))
+            insert_rows("wave_weather_wind_tides", final_df)
+        except:
+            print("No data extracted for {s}".format(s=spot['spot_name']))
 
 def run_gsheets_etl():
     """Updates Google Sheet based on data from PostgreSQL db table.
@@ -482,3 +486,4 @@ def run_gsheets_etl():
     os.chdir(str(pathlib.Path.home())) 
     truncate_google_sheet("GSheet_Wave_Weather_Wind_Tides")
     insert_google_sheet("GSheet_Wave_Weather_Wind_Tides","wave_weather_wind_tides")
+    

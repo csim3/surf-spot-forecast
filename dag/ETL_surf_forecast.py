@@ -208,17 +208,17 @@ class LocationOutlook():
         Returns:
             DataFrame: 17-day weather forecast of a specific location.
         """
-        #dictionaries for each characterisitc of daily weather data
-        dawns = {}
-        sunrises = {}
-        sunsets = {}
-        dusks = {}
+        #lists for each characterisitc of daily weather data
+        dawns = []
+        sunrises = []
+        sunsets = []
+        dusks = []
         
         for daily in weather_json['data']['sunlightTimes']:
-            dawns[str(daily['midnight'])] = daily['dawn']
-            sunrises[str(daily['midnight'])] = daily['sunrise']
-            sunsets[str(daily['midnight'])] = daily['sunset']
-            dusks[str(daily['midnight'])] = daily['dusk']
+            dawns.append(daily['dawn'])
+            sunrises.append(daily['sunrise'])
+            sunsets.append(daily['sunset'])
+            dusks.append(daily['dusk'])
         
         #initialize lists for forecasts from each specified hour
         timestamps = []
@@ -229,26 +229,24 @@ class LocationOutlook():
         dusks_list = []
             
         #forecast data of specified hour
-        for hourly_weather in weather_json['data'][self.forecast_type]:
+        for idx, hourly_weather in enumerate(weather_json['data'][self.forecast_type]):
             timestamps.append(int(hourly_weather['timestamp']))
             temperatures.append(hourly_weather['temperature'])
             
             #look up daily weather characteristics for forecast of specified hour
             time_zone = datetime.timezone(datetime.timedelta(
                 hours=hourly_weather['utcOffset']))
-            local_time = datetime.datetime.fromtimestamp(
-                int(hourly_weather['timestamp']),tz=datetime.timezone.utc).astimezone(time_zone)
-            local_start_of_day_timestamp = str(
-                int(local_time.replace(hour=0,minute=0,second=0,microsecond=0).timestamp()))
+            #get 0-indexed day number, max of 17-days
+            day_num = min(idx // 24, 16)
             
             dawns_list.append(get_formatted_local_time(
-                dawns[local_start_of_day_timestamp], time_zone))
+                dawns[day_num], time_zone))
             sunrises_list.append(get_formatted_local_time(
-                sunrises[local_start_of_day_timestamp], time_zone))
+                sunrises[day_num], time_zone))
             sunsets_list.append(get_formatted_local_time(
-                sunsets[local_start_of_day_timestamp], time_zone))
+                sunsets[day_num], time_zone))
             dusks_list.append(get_formatted_local_time(
-                dusks[local_start_of_day_timestamp], time_zone))
+                dusks[day_num], time_zone))
         
         weather_dict = {
             "spot_with_timestamp": [self.spot_id+"-"+str(t) for t in timestamps],
@@ -412,19 +410,18 @@ def run_postgresql_etl():
     for spot in get_spot_mapping_list():
         try:
             #Create dataframes for each wave, weather, wind, and tides forecast
-            #Three hour intervals for wave, weather, and wind
-            #One hour intervals for tides to get exact times of high and low tides
-            wave_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wave', 3)
+            #One hour intervals for wave, weather, wind, and tides
+            wave_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wave', 1)
             wave_json_data = wave_spot.get_forecast_json(
                 wave_spot.forecast_type, wave_spot.interval_hours)
             wave_df = wave_spot.get_wave_dataframe(wave_json_data)
             
-            weather_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'weather', 3)
+            weather_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'weather', 1)
             weather_json_data = weather_spot.get_forecast_json(
                 weather_spot.forecast_type, weather_spot.interval_hours)
             weather_df = weather_spot.get_weather_dataframe(weather_json_data)
             
-            wind_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wind', 3)
+            wind_spot = LocationOutlook(spot['spot_id'], spot['spot_name'], 'wind', 1)
             wind_json_data = wind_spot.get_forecast_json(
                 wind_spot.forecast_type, wind_spot.interval_hours)
             wind_df = wind_spot.get_wind_dataframe(wind_json_data)
@@ -486,4 +483,3 @@ def run_gsheets_etl():
     os.chdir(str(pathlib.Path.home())) 
     truncate_google_sheet("GSheet_Wave_Weather_Wind_Tides")
     insert_google_sheet("GSheet_Wave_Weather_Wind_Tides","wave_weather_wind_tides")
-    

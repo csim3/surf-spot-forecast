@@ -1,4 +1,4 @@
-"""ETL for 17-day surf forecast data from Surfline's API"""
+"""ETL for 5-day surf forecast data from Surfline's API"""
 
 import os
 
@@ -20,7 +20,7 @@ import yaml
 from spot_mapping import get_spot_mapping_list, get_spot_mapping_df
 
 class LocationOutlook():
-    """Surf break location with 17-day forecast of waves, weather, wind, or tides.
+    """Surf break location with 5-day forecast of waves, weather, wind, or tides.
     
     Attributes:
         spot_id (string): Surfline's alphanumeric ID of a surf break location.
@@ -42,7 +42,7 @@ class LocationOutlook():
         """Fetches JSON object of the request result from Surfline's API.
 
         JSON object is a location's forecast data of a specific forecast type 
-        (wave, weather, wind, or tides). Time period is 17 days and specified 
+        (wave, weather, wind, or tides). Time period is 5 days and specified 
         number of hours for each forecast interval.
 
         Args:
@@ -57,7 +57,7 @@ class LocationOutlook():
             t = forecast_type)
         p = {}
         p['spotId'] = self.spot_id
-        p['days'] = 17
+        p['days'] = 5
         p['intervalHours'] = interval_hours
         p['sds'] = True
         r = requests.get(base_url, params = p)
@@ -70,7 +70,7 @@ class LocationOutlook():
             wave_json (JSON): Request result from Surfline's API for wave forecast.
 
         Returns:
-            DataFrame: 17-day wave forecast of a specific location.
+            DataFrame: 5-day wave forecast of a specific location.
         """
         #static location-specific data
         latitude = wave_json['associated']['location']['lat']
@@ -132,7 +132,7 @@ class LocationOutlook():
             wind_json (JSON): Request result from Surfline's API for wind forecast.
 
         Returns:
-            DataFrame: 17-day wind forecast of a specific location.
+            DataFrame: 5-day wind forecast of a specific location.
         """
         #initialize lists for forecasts from each specified hour
         timestamps = []
@@ -159,7 +159,7 @@ class LocationOutlook():
             tides_json (JSON): Request result from Surfline's API for tides forecast.
 
         Returns:
-            DataFrame: 17-day tides forecast, along with timestamps of high and low tides.
+            DataFrame: 5-day tides forecast, along with timestamps of high and low tides.
         """
         #static location-specific data
         latitude = tides_json['associated']['tideLocation']['lat']
@@ -206,7 +206,7 @@ class LocationOutlook():
             json_data (JSON): Request result from Surfline's API for weather forecast.
 
         Returns:
-            DataFrame: 17-day weather forecast of a specific location.
+            DataFrame: 5-day weather forecast of a specific location.
         """
         #lists for each characterisitc of daily weather data
         dawns = []
@@ -236,7 +236,7 @@ class LocationOutlook():
             #look up daily weather characteristics for forecast of specified hour
             time_zone = datetime.timezone(datetime.timedelta(
                 hours=hourly_weather['utcOffset']))
-            #get 0-indexed day number, max of 17-days
+            #get 0-indexed day number, max of 5-days
             day_num = min(idx // 24, 16)
             
             dawns_list.append(get_formatted_local_time(
@@ -312,7 +312,7 @@ def insert_rows(table_name, df):
 
     Args:
         table_name (string): PostgreSQL database table name.
-        df (DataFrame): 17-day forecast data of specific location.
+        df (DataFrame): 5-day forecast data of specific location.
     """
     with open('config.yaml') as config_file:
         dict = yaml.safe_load(config_file)

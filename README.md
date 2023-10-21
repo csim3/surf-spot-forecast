@@ -16,4 +16,4 @@ I practiced building a data pipeline with [Surfline](https://www.surfline.com/) 
 
 ## Tableau Dashboard Screenshot
 
-![Screen Shot 2022-08-22 at 9 23 26 PM](https://user-images.githubusercontent.com/79472629/186069526-19c48f25-9d95-4f01-b3d3-c10e79d2ca40.png)
+![5DayForecast](https://github.com/csim3/surf_spot_forecast/assets/79472629/988a2647-a756-4d86-9c58-779ce11e48aa)

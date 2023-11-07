@@ -3,7 +3,7 @@
 I practiced building a data pipeline with [Surfline](https://www.surfline.com/) forecast data. The ETL process is shown in the below diagram and is described in the below steps.
 
 
-![image](https://github.com/csim3/surf-spot-forecast/assets/79472629/609eee95-0aef-448d-9b0a-dd0d7d9f9273)
+![image](https://github.com/csim3/surf-spot-forecast/assets/79472629/b1974223-330c-4b15-a2bf-868b970ee740)
 
 
 ## Steps
